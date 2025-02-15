@@ -201,6 +201,184 @@ If successful, you should see:
 postgres=#
 ```
 
+It looks like you're making progress with setting up PostgreSQL and your Flask application on your AWS EC2 instance. However, there are a few issues and steps that need to be addressed to get your Flask app running properly. Let's go through them step by step:
+
 ---
+
+### **1. Fix the `flask` Module Not Found Error**
+The error `ModuleNotFoundError: No module named 'flask'` occurs because the `flask` package is not installed in your virtual environment.
+
+1. Activate your virtual environment (if not already activated):
+   ```bash
+   source venv/bin/activate
+   ```
+2. Install the required Python packages:
+   ```bash
+   pip install flask psycopg2-binary
+   ```
+
+---
+
+### **2. Fix the `psql` Connection Error**
+The error `role "ec2-user" does not exist` occurs because PostgreSQL does not recognize the `ec2-user` as a valid database user. You need to use the `postgres` user or the `flaskuser` you created to interact with PostgreSQL.
+
+To connect to PostgreSQL as the `flaskuser`:
+```bash
+psql -U flaskuser -d myflaskdb -h localhost
+```
+You will be prompted for the password (`securepassword` in your case).
+
+---
+
+### **3. Update Your Flask Application**
+Ensure your Flask application (`app.py`) is correctly configured to connect to the PostgreSQL database. Here's an example:
+
+```python
+from flask import Flask, request, jsonify
+import psycopg2
+
+app = Flask(__name__)
+
+# Database connection
+def get_db_connection():
+    conn = psycopg2.connect(
+        host='localhost',
+        database='myflaskdb',
+        user='flaskuser',  # Use the user you created
+        password='securepassword'  # Use the password you set
+    )
+    return conn
+
+# Routes
+@app.route('/users', methods=['GET'])
+def get_users():
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute('SELECT * FROM users;')
+    users = cur.fetchall()
+    cur.close()
+    conn.close()
+    return jsonify(users)
+
+@app.route('/users', methods=['POST'])
+def create_user():
+    data = request.get_json()
+    name = data['name']
+    email = data['email']
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute('INSERT INTO users (name, email) VALUES (%s, %s) RETURNING id;', (name, email))
+    user_id = cur.fetchone()[0]
+    conn.commit()
+    cur.close()
+    conn.close()
+    return jsonify({'id': user_id, 'name': name, 'email': email}), 201
+
+@app.route('/users/<int:user_id>', methods=['GET'])
+def get_user(user_id):
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute('SELECT * FROM users WHERE id = %s;', (user_id,))
+    user = cur.fetchone()
+    cur.close()
+    conn.close()
+    if user is None:
+        return jsonify({'error': 'User not found'}), 404
+    return jsonify(user)
+
+@app.route('/users/<int:user_id>', methods=['PUT'])
+def update_user(user_id):
+    data = request.get_json()
+    name = data['name']
+    email = data['email']
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute('UPDATE users SET name = %s, email = %s WHERE id = %s RETURNING id;', (name, email, user_id))
+    updated_user = cur.fetchone()
+    conn.commit()
+    cur.close()
+    conn.close()
+    if updated_user is None:
+        return jsonify({'error': 'User not found'}), 404
+    return jsonify({'id': updated_user[0], 'name': name, 'email': email})
+
+@app.route('/users/<int:user_id>', methods=['DELETE'])
+def delete_user(user_id):
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute('DELETE FROM users WHERE id = %s RETURNING id;', (user_id,))
+    deleted_user = cur.fetchone()
+    conn.commit()
+    cur.close()
+    conn.close()
+    if deleted_user is None:
+        return jsonify({'error': 'User not found'}), 404
+    return jsonify({'message': 'User deleted successfully'})
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
+```
+
+---
+
+### **4. Run the Flask Application**
+1. Ensure your virtual environment is activated:
+   ```bash
+   source venv/bin/activate
+   ```
+2. Run the Flask app:
+   ```bash
+   python3 app.py
+   ```
+3. The app should now be running on `http://<your-ec2-public-ip>:5000`.
+
+---
+
+### **5. Test the API**
+Use tools like `curl` or Postman to test your API endpoints:
+- **GET** `/users` - Fetch all users.
+- **POST** `/users` - Create a new user.
+- **GET** `/users/<user_id>` - Fetch a specific user.
+- **PUT** `/users/<user_id>` - Update a user.
+- **DELETE** `/users/<user_id>` - Delete a user.
+
+---
+
+### **6. Allow External Access to Flask**
+By default, Flask only listens on `localhost`. To allow external access:
+1. Update the `app.run()` line in `app.py`:
+   ```python
+   app.run(host='0.0.0.0', port=5000)
+   ```
+2. Ensure your EC2 security group allows inbound traffic on port 5000.
+
+---
+
+### **7. (Optional) Use a Production Server**
+For production, use a WSGI server like `gunicorn`:
+1. Install `gunicorn`:
+   ```bash
+   pip install gunicorn
+   ```
+2. Run the app with `gunicorn`:
+   ```bash
+   gunicorn -w 4 app:app
+   ```
+
+---
+
+### **8. Debugging Tips**
+- If you encounter errors, check the Flask logs in the terminal.
+- Ensure the PostgreSQL service is running:
+  ```bash
+  sudo systemctl status postgresql
+  ```
+- Verify the database connection details in `app.py`.
+
+---
+
+Let me know if you encounter any further issues!
 
 
