@@ -140,6 +140,67 @@ sudo firewall-cmd --reload
 - Allow **port 5432** for PostgreSQL.
 
 ---
+You're logged in as the `postgres` user, and **sudo is requiring a password**. However, by default, the `postgres` user should not have a password for sudo. Instead, you should **run administrative commands as `ec2-user` or root**.
 
-### **🎯 PostgreSQL 15 is Now Installed on Amazon Linux 2023!**
-Try the steps and let me know if you need help! 🚀🔥
+---
+
+## **🔹 1. Switch Back to `ec2-user`**
+Since `postgres` does not have sudo privileges, **exit the `postgres` user** and return to `ec2-user`:
+```bash
+exit
+```
+or
+```bash
+su - ec2-user
+```
+
+Then, **run the commands as `ec2-user`**.
+
+---
+
+## **🔹 2. Ensure the Correct PostgreSQL Data Directory**
+Check what directory PostgreSQL is using:
+```bash
+ls -ld /var/lib/pgsql/*
+```
+If `/var/lib/pgsql/data` is **empty or missing**, PostgreSQL is not correctly initialized.
+
+To fix it, **reinitialize PostgreSQL**:
+```bash
+sudo rm -rf /var/lib/pgsql/data  # Delete old empty directory
+sudo ln -s /var/lib/pgsql/15/data /var/lib/pgsql/data
+sudo chown -R postgres:postgres /var/lib/pgsql/15
+sudo chmod 700 /var/lib/pgsql/15/data
+```
+
+---
+
+## **🔹 3. Restart PostgreSQL Properly**
+Once back in `ec2-user`, **start and enable PostgreSQL**:
+```bash
+sudo systemctl enable --now postgresql
+```
+Check its status:
+```bash
+sudo systemctl status postgresql
+```
+If PostgreSQL fails, check logs:
+```bash
+sudo journalctl -xeu postgresql.service
+```
+
+---
+
+## **🔹 4. Verify PostgreSQL is Running**
+Try:
+```bash
+psql -U postgres -d postgres
+```
+If successful, you should see:
+```
+postgres=#
+```
+
+---
+
+
