@@ -377,8 +377,4 @@ For production, use a WSGI server like `gunicorn`:
   ```
 - Verify the database connection details in `app.py`.
 
----
-
-Let me know if you encounter any further issues!
-
 
