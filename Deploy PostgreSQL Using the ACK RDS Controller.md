@@ -1,0 +1,194 @@
+To deploy **PostgreSQL** on an EKS cluster using the **AWS Controllers for Kubernetes (ACK)**, follow the steps below. This guide assumes you already have an EKS cluster (`eksctl-Three-Tier-K8s-EKS-Cluster`) set up and configured.
+
+---
+
+### **Step 1: Prerequisites**
+1. **EKS Cluster**:
+   - Ensure your EKS cluster is running and accessible.
+   - Verify access to the cluster:
+     ```bash
+     kubectl get nodes
+     ```
+
+2. **Install Required Tools**:
+   - **AWS CLI**: Configured with the necessary permissions.
+   - **kubectl**: Configured to access your EKS cluster.
+   - **Helm**: For installing the ACK controller.
+   - **eksctl**: For managing the EKS cluster (optional).
+
+3. **IAM Permissions**:
+   - Ensure the IAM user or role has permissions to create and manage RDS instances.
+
+---
+
+### **Step 2: Install the ACK RDS Controller**
+1. **Add the ACK Helm Repository**:
+   ```bash
+   helm repo add aws-controllers https://aws-controllers-k8s.github.io/charts
+   helm repo update
+   ```
+
+2. **Install the ACK RDS Controller**:
+   ```bash
+   export AWS_REGION=us-east-1  # Replace with your region
+   export ACK_SYSTEM_NAMESPACE=ack-system
+
+   helm install --create-namespace -n $ACK_SYSTEM_NAMESPACE ack-rds-controller \
+     aws-controllers/ack-rds-controller \
+     --set aws.region=$AWS_REGION
+   ```
+
+3. **Verify Installation**:
+   Check if the ACK RDS controller pod is running:
+   ```bash
+   kubectl get pods -n $ACK_SYSTEM_NAMESPACE
+   ```
+
+---
+
+### **Step 3: Configure IAM Roles for Service Accounts (IRSA)**
+1. **Create an IAM Policy**:
+   Create an IAM policy for the ACK RDS controller to manage RDS resources:
+   ```bash
+   cat <<EOF > ack-rds-policy.json
+   {
+       "Version": "2012-10-17",
+       "Statement": [
+           {
+               "Effect": "Allow",
+               "Action": [
+                   "rds:*",
+                   "ec2:DescribeSubnets",
+                   "ec2:DescribeVpcs",
+                   "ec2:DescribeSecurityGroups"
+               ],
+               "Resource": "*"
+           }
+       ]
+   }
+   EOF
+
+   aws iam create-policy --policy-name ACKRDSPolicy --policy-document file://ack-rds-policy.json
+   ```
+
+2. **Create an IAM Role for the Service Account**:
+   Replace `<your-account-id>` and `<your-cluster-name>` with your AWS account ID and EKS cluster name:
+   ```bash
+   eksctl create iamserviceaccount \
+       --name ack-rds-controller \
+       --namespace $ACK_SYSTEM_NAMESPACE \
+       --cluster <your-cluster-name> \
+       --attach-policy-arn arn:aws:iam::<your-account-id>:policy/ACKRDSPolicy \
+       --approve
+   ```
+
+3. **Verify the Service Account**:
+   Ensure the service account is created and annotated with the IAM role:
+   ```bash
+   kubectl describe serviceaccount ack-rds-controller -n $ACK_SYSTEM_NAMESPACE
+   ```
+
+---
+
+### **Step 4: Deploy PostgreSQL Using ACK**
+1. **Create a Namespace for PostgreSQL**:
+   ```bash
+   kubectl create namespace postgres-ns
+   ```
+
+2. **Create a Kubernetes Secret for PostgreSQL Credentials**:
+   Replace `<username>` and `<password>` with your desired PostgreSQL credentials:
+   ```bash
+   kubectl create secret generic postgres-credentials \
+       --namespace postgres-ns \
+       --from-literal=username=<username> \
+       --from-literal=password=<password>
+   ```
+
+3. **Deploy PostgreSQL**:
+   Create a YAML file (`postgresql.yaml`) for the PostgreSQL RDS instance:
+   ```yaml
+   apiVersion: rds.services.k8s.aws/v1alpha1
+   kind: DBInstance
+   metadata:
+     name: postgresql-instance
+     namespace: postgres-ns
+   spec:
+     dbInstanceIdentifier: postgresql-instance
+     dbInstanceClass: db.t3.micro
+     engine: postgres
+     engineVersion: "13.4"
+     masterUsername:
+       secretKeyRef:
+         name: postgres-credentials
+         key: username
+     masterUserPassword:
+       secretKeyRef:
+         name: postgres-credentials
+         key: password
+     allocatedStorage: 20
+     publiclyAccessible: true
+     dbSubnetGroupName: default
+     vpcSecurityGroupIDs:
+       - sg-xxxxxxxx  # Replace with your security group ID
+   ```
+
+4. **Apply the Manifest**:
+   Deploy the PostgreSQL instance:
+   ```bash
+   kubectl apply -f postgresql.yaml
+   ```
+
+5. **Verify the Deployment**:
+   Check the status of the RDS instance:
+   ```bash
+   kubectl get dbinstance -n postgres-ns
+   ```
+
+---
+
+### **Step 5: Access PostgreSQL**
+1. **Get the Endpoint**:
+   Retrieve the endpoint of the PostgreSQL instance:
+   ```bash
+   kubectl get dbinstance postgresql-instance -n postgres-ns -o jsonpath='{.status.endpointAddress}'
+   ```
+
+2. **Connect to PostgreSQL**:
+   Use the endpoint, username, and password to connect to the PostgreSQL database:
+   ```bash
+   psql -h <endpoint> -U <username> -d postgres
+   ```
+
+---
+
+### **Step 6: Clean Up**
+1. **Delete the PostgreSQL Instance**:
+   ```bash
+   kubectl delete dbinstance postgresql-instance -n postgres-ns
+   ```
+
+2. **Uninstall the ACK RDS Controller**:
+   ```bash
+   helm uninstall ack-rds-controller -n $ACK_SYSTEM_NAMESPACE
+   ```
+
+3. **Delete the IAM Role and Policy**:
+   ```bash
+   eksctl delete iamserviceaccount --name ack-rds-controller --namespace $ACK_SYSTEM_NAMESPACE --cluster <your-cluster-name>
+   aws iam delete-policy --policy-arn arn:aws:iam::<your-account-id>:policy/ACKRDSPolicy
+   ```
+
+---
+
+### **Troubleshooting**
+- **RDS Instance Not Created**:
+  - Check the logs of the ACK RDS controller:
+    ```bash
+    kubectl logs -n $ACK_SYSTEM_NAMESPACE -l app.kubernetes.io/instance=ack-rds-controller
+    ```
+  - Ensure the IAM role has the correct permissions.
+
+- **Connection Issues**:
+  - Verify the security group allows inbound traffic on port `5432`.
+  - Ensure the PostgreSQL instance is publicly accessible (if required).
