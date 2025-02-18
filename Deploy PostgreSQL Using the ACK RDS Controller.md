@@ -192,3 +192,102 @@ To deploy **PostgreSQL** on an EKS cluster using the **AWS Controllers for Kuber
 - **Connection Issues**:
   - Verify the security group allows inbound traffic on port `5432`.
   - Ensure the PostgreSQL instance is publicly accessible (if required).
+
+
+To resolve the "InvalidSubnet: No default subnet detected in VPC" error and successfully deploy your PostgreSQL instance using the AWS Controllers for Kubernetes (ACK) in your Amazon EKS cluster, you'll need to create a **DB Subnet Group** that includes your existing subnets. This subnet group will inform Amazon RDS about which subnets within your VPC it can utilize for the database instance.
+
+**Steps to Create a DB Subnet Group and Deploy PostgreSQL:**
+
+1. **Identify Your Subnets:**
+   Based on the information you've provided, you have the following subnets:
+   - **Private Subnet in us-east-1f:**
+     - Subnet ID: `subnet-079948fd64452326e`
+     - CIDR: `192.168.64.0/19`
+   - **Private Subnet in us-east-1c:**
+     - Subnet ID: `subnet-053d9e501c1107821`
+     - CIDR: `192.168.96.0/19`
+
+   These subnets are in different Availability Zones (AZs), which is a requirement for creating a DB Subnet Group.
+
+2. **Create a DB Subnet Group:**
+   A DB Subnet Group is a collection of subnets that RDS uses to allocate IP addresses for your DB instances in a VPC. You can create this group using the AWS Management Console, AWS CLI, or directly through Kubernetes manifests with ACK.
+
+   - **Using AWS CLI:**
+     Ensure you have the AWS CLI installed and configured with the necessary permissions.
+
+     ```bash
+     aws rds create-db-subnet-group \
+       --db-subnet-group-name my-db-subnet-group \
+       --db-subnet-group-description "My DB Subnet Group for EKS" \
+       --subnet-ids subnet-079948fd64452326e subnet-053d9e501c1107821
+     ```
+
+     This command creates a DB Subnet Group named `my-db-subnet-group` that includes your specified subnets.
+
+   - **Using ACK with Kubernetes Manifest:**
+     If you prefer managing AWS resources through Kubernetes, you can define the DB Subnet Group using a Kubernetes manifest.
+
+     ```yaml
+     apiVersion: rds.services.k8s.aws/v1alpha1
+     kind: DBSubnetGroup
+     metadata:
+       name: my-db-subnet-group
+     spec:
+       name: my-db-subnet-group
+       description: "My DB Subnet Group for EKS"
+       subnetIDs:
+         - subnet-079948fd64452326e
+         - subnet-053d9e501c1107821
+     ```
+
+     Save this manifest as `db-subnet-group.yaml` and apply it using:
+
+     ```bash
+     kubectl apply -f db-subnet-group.yaml
+     ```
+
+     This approach leverages the ACK RDS controller to manage the creation of the DB Subnet Group.
+
+3. **Modify Your PostgreSQL DBInstance Manifest:**
+   After creating the DB Subnet Group, update your existing `DBInstance` manifest to reference this subnet group.
+
+   ```yaml
+   apiVersion: rds.services.k8s.aws/v1alpha1
+   kind: DBInstance
+   metadata:
+     name: eksrdslab
+   spec:
+     allocatedStorage: 20
+     dbInstanceClass: db.t4g.micro
+     dbInstanceIdentifier: eksrdslab
+     engine: postgres
+     engineVersion: "14"
+     masterUsername: "postgres"
+     masterUserPassword:
+       namespace: default
+       name: eksrdslab-password
+       key: password
+     dbSubnetGroupName: my-db-subnet-group
+   ```
+
+   Ensure the `dbSubnetGroupName` field matches the name of the DB Subnet Group you created.
+
+4. **Apply the Updated DBInstance Manifest:**
+   Deploy the updated `DBInstance` manifest to your EKS cluster:
+
+   ```bash
+   kubectl apply -f your-dbinstance-manifest.yaml
+   ```
+
+   Replace `your-dbinstance-manifest.yaml` with the actual filename of your manifest.
+
+5. **Verify the Deployment:**
+   Monitor the status of your DBInstance to ensure it's created successfully:
+
+   ```bash
+   kubectl describe dbinstance eksrdslab
+   ```
+
+   Look for a `Status` condition indicating that the instance is `available`.
+
+By following these steps, you configure your RDS instance to utilize the specified subnets within your VPC, resolving the subnet-related error and ensuring proper deployment within your EKS environment. 
