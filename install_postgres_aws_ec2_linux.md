@@ -1,4 +1,4 @@
-### **🚀 Installing PostgreSQL on Amazon Linux 2023**
+### ** Installing PostgreSQL on Amazon Linux 2023**
 Since you are using **Amazon Linux 2023 (AL2023)**, the installation method is **different** from Amazon Linux 2.
 
 ---
