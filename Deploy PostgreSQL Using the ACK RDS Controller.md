@@ -1,4 +1,4 @@
-To deploy **PostgreSQL** on an EKS cluster using the **AWS Controllers for Kubernetes (ACK)**, follow the steps below. This guide assumes you already have an EKS cluster (`eksctl-Three-Tier-K8s-EKS-Cluster`) set up and configured.
+To deploy **PostgreSQL** on an EKS cluster using the **AWS Controllers for Kubernetes (ACK)**, follow the steps below. This guide assumes you already have an EKS cluster  set up and configured.
 
 ---
 
