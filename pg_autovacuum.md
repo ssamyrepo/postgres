@@ -418,7 +418,6 @@ REINDEX TABLE my_large_table;
 
 #!/bin/bash
 # PostgreSQL Bloat Monitoring & Autovacuum Tuning Script
-# Author: Stanley Samy
 # Purpose: Automate bloat detection, vacuum checks, and logging
 
 DB_NAME="your_database"
