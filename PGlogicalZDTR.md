@@ -1,4 +1,4 @@
-### **📌 Key Takeaways: Zero Downtime PostgreSQL Upgrades & Logical Replication of Large Tables**  
+### ** Zero Downtime PostgreSQL Upgrades & Logical Replication of Large Tables**  
 
 ### **1️⃣ Standard Upgrade Methods**
 - **`pg_upgrade` (In-Place Upgrade)**
