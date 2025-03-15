@@ -75,4 +75,3 @@ Instead of writing **both WAL and data pages**, **Aurora writes only a "redo log
 - It **eliminates checkpoints**, preventing **I/O spikes**.
 - **However, reads may require reconstructing pages**, impacting query latency if not optimized.
 
-Would you like to dive deeper into **Aurora-specific tuning strategies** based on your workloads? 🚀
