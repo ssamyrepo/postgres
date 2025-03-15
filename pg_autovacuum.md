@@ -248,3 +248,246 @@ REINDEX TABLE my_large_table;
 ✅ **Use `pg_repack`** instead of `VACUUM FULL` for large bloated tables  
 ✅ **Enable Logging** to diagnose vacuum performance  
 
+Here are some **SQL queries and scripts** for **monitoring bloat and tuning autovacuum** in **PostgreSQL**:
+
+---
+
+## **1. Monitor Table Bloat Using `pgstattuple`**
+PostgreSQL’s `pgstattuple` extension provides **bloat information** about tables.
+
+### **Install the Extension (if not already installed)**
+```sql
+CREATE EXTENSION IF NOT EXISTS pgstattuple;
+```
+
+### **Check Table Bloat**
+```sql
+SELECT 
+    schemaname,
+    relname AS table_name,
+    pg_size_pretty(pg_total_relation_size(relid)) AS total_size,
+    pg_size_pretty(pg_relation_size(relid)) AS table_size,
+    pg_size_pretty(pg_total_relation_size(relid) - pg_relation_size(relid)) AS index_size,
+    (pgstattuple(relid)).dead_tuple_count AS dead_tuples,
+    ROUND((pgstattuple(relid)).dead_tuple_percent, 2) AS dead_tuple_pct
+FROM pg_stat_user_tables 
+ORDER BY dead_tuple_pct DESC
+LIMIT 10;
+```
+**Interpretation:**
+- If **dead_tuple_pct > 10%**, you may need **more frequent autovacuum**.
+- If a table has **a high number of dead tuples and is large**, consider **manual vacuuming or repacking**.
+
+---
+
+## **2. Identify Tables Needing Autovacuum Tuning**
+```sql
+SELECT 
+    schemaname,
+    relname AS table_name,
+    n_live_tup AS live_tuples,
+    n_dead_tup AS dead_tuples,
+    last_vacuum,
+    last_autovacuum,
+    autovacuum_count
+FROM pg_stat_user_tables 
+ORDER BY n_dead_tup DESC
+LIMIT 10;
+```
+**Interpretation:**
+- If `n_dead_tup` is high but `last_autovacuum` is **NULL or outdated**, increase autovacuum frequency.
+- `autovacuum_count` shows how often autovacuum has run.
+
+---
+
+## **3. Check Autovacuum Activity in Real Time**
+```sql
+SELECT 
+    pid, age(now(), backend_start) AS running_time, 
+    query, state 
+FROM pg_stat_activity 
+WHERE query LIKE '%VACUUM%'
+ORDER BY running_time DESC;
+```
+**Interpretation:**
+- Shows active **vacuum processes** and how long they’ve been running.
+
+---
+
+## **4. Adjust Autovacuum Settings for Large Tables**
+For large tables, set **fixed thresholds** instead of percentage-based scaling.
+
+```sql
+ALTER TABLE my_large_table
+SET (autovacuum_vacuum_threshold = 50000, autovacuum_vacuum_scale_factor = 0);
+```
+**Why?**
+- Default `autovacuum_vacuum_scale_factor = 0.2` (20% of table size) is **too high** for large tables.
+- **Instead, trigger vacuum at a fixed number** (e.g., `50,000` changes).
+
+---
+
+## **5. Speed Up Autovacuum by Reducing Cost Delay**
+```sql
+ALTER SYSTEM SET autovacuum_vacuum_cost_delay = 2;
+ALTER SYSTEM SET autovacuum_vacuum_cost_limit = 2000;
+SELECT pg_reload_conf();
+```
+**Why?**
+- **Reduces delay between vacuum operations** (default `20ms` → `2ms`).
+- **Increases the work vacuum can do per cycle** (default `200` → `2000`).
+
+---
+
+## **6. Force an Immediate Manual Vacuum**
+If you need to **urgently remove dead tuples**, manually run:
+```sql
+VACUUM ANALYZE my_large_table;
+```
+Or, for a **full rebuild (table lock required)**:
+```sql
+VACUUM FULL my_large_table;
+```
+**Warning:** `VACUUM FULL` **locks the table**, making it unavailable for writes.
+
+---
+
+## **7. Use `pg_repack` for Online Table Repacking**
+If `VACUUM FULL` is too disruptive, use **`pg_repack`**:
+```bash
+pg_repack -h mydbhost -U myuser -d mydatabase -t my_large_table
+```
+**Benefits:**
+- **Rebuilds the table without locking it** (only a short lock at the end).
+- **Reduces bloat by rewriting the table efficiently**.
+
+---
+
+## **8. Check Frozen Transaction IDs to Avoid Wraparound**
+```sql
+SELECT 
+    datname, age(datfrozenxid) AS xid_age,
+    setting::int AS autovacuum_freeze_max_age
+FROM pg_database, pg_settings 
+WHERE name = 'autovacuum_freeze_max_age'
+ORDER BY xid_age DESC;
+```
+**Action Plan:**
+- If `xid_age` is **approaching `autovacuum_freeze_max_age`** (default **200 million**), increase vacuum frequency.
+
+---
+
+## **9. Enable Logging to Debug Autovacuum**
+To **log all autovacuum actions**, modify `postgresql.conf`:
+```sql
+ALTER SYSTEM SET log_autovacuum_min_duration = 0;
+SELECT pg_reload_conf();
+```
+- Logs every **autovacuum execution** in `postgresql.log`.
+- Helps diagnose if **autovacuum is running too slowly or not at all**.
+
+---
+
+## **10. Check Index Bloat**
+```sql
+SELECT 
+    schemaname, 
+    relname AS index_name, 
+    pg_size_pretty(pg_relation_size(indexrelid)) AS index_size, 
+    pg_size_pretty(pg_relation_size(relid)) AS table_size, 
+    (pg_relation_size(indexrelid)::numeric / pg_relation_size(relid)) AS index_to_table_ratio
+FROM pg_stat_user_indexes 
+WHERE pg_relation_size(relid) > 0
+ORDER BY index_to_table_ratio DESC
+LIMIT 10;
+```
+**Action Plan:**
+- If `index_to_table_ratio > 1.0`, the **index is larger than the table itself** → Consider reindexing.
+```sql
+REINDEX TABLE my_large_table;
+```
+
+---
+
+## **Summary**
+✅ **Monitor Bloat** (`pgstattuple`, dead tuples count)  
+✅ **Fine-Tune Autovacuum** (scale factor, cost delay, cost limit)  
+✅ **Manually Vacuum Large Tables** if autovacuum is too slow  
+✅ **Use `pg_repack`** instead of `VACUUM FULL` for large bloated tables  
+✅ **Enable Logging** to diagnose vacuum performance  
+
+#!/bin/bash
+# PostgreSQL Bloat Monitoring & Autovacuum Tuning Script
+# Author: Stanley Samy
+# Purpose: Automate bloat detection, vacuum checks, and logging
+
+DB_NAME="your_database"
+DB_USER="your_user"
+LOG_FILE="/var/log/postgres_bloat_monitor.log"
+PSQL="psql -U $DB_USER -d $DB_NAME -t -A"
+
+echo "===== PostgreSQL Bloat Monitoring: $(date) =====" | tee -a $LOG_FILE
+
+# 1. Monitor Table Bloat
+echo "\n[INFO] Checking table bloat..." | tee -a $LOG_FILE
+$PSQL -c "\
+SELECT schemaname, relname AS table_name, 
+       pg_size_pretty(pg_total_relation_size(relid)) AS total_size, 
+       pg_size_pretty(pg_relation_size(relid)) AS table_size, 
+       (pgstattuple(relid)).dead_tuple_count AS dead_tuples, 
+       ROUND((pgstattuple(relid)).dead_tuple_percent, 2) AS dead_tuple_pct 
+FROM pg_stat_user_tables 
+ORDER BY dead_tuple_pct DESC LIMIT 10;" | tee -a $LOG_FILE
+
+# 2. Identify Tables Needing Autovacuum
+echo "\n[INFO] Checking tables needing autovacuum..." | tee -a $LOG_FILE
+$PSQL -c "\
+SELECT schemaname, relname AS table_name, n_live_tup AS live_tuples, 
+       n_dead_tup AS dead_tuples, last_vacuum, last_autovacuum, autovacuum_count 
+FROM pg_stat_user_tables 
+ORDER BY n_dead_tup DESC LIMIT 10;" | tee -a $LOG_FILE
+
+# 3. Check Autovacuum Activity
+echo "\n[INFO] Checking current autovacuum processes..." | tee -a $LOG_FILE
+$PSQL -c "\
+SELECT pid, age(now(), backend_start) AS running_time, query, state 
+FROM pg_stat_activity 
+WHERE query LIKE '%VACUUM%' ORDER BY running_time DESC;" | tee -a $LOG_FILE
+
+# 4. Analyze Frozen Transaction IDs
+echo "\n[INFO] Checking frozen transaction IDs..." | tee -a $LOG_FILE
+$PSQL -c "\
+SELECT datname, age(datfrozenxid) AS xid_age, setting::int AS autovacuum_freeze_max_age 
+FROM pg_database, pg_settings WHERE name = 'autovacuum_freeze_max_age' 
+ORDER BY xid_age DESC;" | tee -a $LOG_FILE
+
+# 5. Detect Index Bloat
+echo "\n[INFO] Checking index bloat..." | tee -a $LOG_FILE
+$PSQL -c "\
+SELECT schemaname, relname AS index_name, 
+       pg_size_pretty(pg_relation_size(indexrelid)) AS index_size, 
+       pg_size_pretty(pg_relation_size(relid)) AS table_size, 
+       (pg_relation_size(indexrelid)::numeric / pg_relation_size(relid)) AS index_to_table_ratio 
+FROM pg_stat_user_indexes WHERE pg_relation_size(relid) > 0 
+ORDER BY index_to_table_ratio DESC LIMIT 10;" | tee -a $LOG_FILE
+
+# 6. Enable Autovacuum Logging
+echo "\n[INFO] Enabling autovacuum logging..." | tee -a $LOG_FILE
+$PSQL -c "ALTER SYSTEM SET log_autovacuum_min_duration = 0;"
+$PSQL -c "SELECT pg_reload_conf();"
+echo "[INFO] Autovacuum logging enabled." | tee -a $LOG_FILE
+
+# 7. Trigger Manual Vacuum if Needed
+echo "\n[INFO] Checking if manual vacuuming is needed..." | tee -a $LOG_FILE
+TABLES_TO_VACUUM=$($PSQL -c "SELECT relname FROM pg_stat_user_tables WHERE n_dead_tup > 1000000;")
+if [ -n "$TABLES_TO_VACUUM" ]; then
+    echo "[WARNING] High dead tuples detected. Running manual vacuum..." | tee -a $LOG_FILE
+    for TABLE in $TABLES_TO_VACUUM; do
+        echo "Vacuuming $TABLE..." | tee -a $LOG_FILE
+        $PSQL -c "VACUUM ANALYZE $TABLE;" | tee -a $LOG_FILE
+    done
+else
+    echo "[INFO] No manual vacuum required." | tee -a $LOG_FILE
+fi
+
+echo "\n[INFO] PostgreSQL Bloat Monitoring Completed: $(date)" | tee -a $LOG_FILE
