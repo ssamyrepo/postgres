@@ -162,5 +162,4 @@ These commands show replication status and confirm that streaming is active.
 
 ---
 
-**Interview Tip:** Clearly explain each step, emphasize critical points like configuration parameters (`wal_level`, `primary_conninfo`), and stress on verifying replication status for confidence.
 
