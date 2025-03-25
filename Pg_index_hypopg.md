@@ -1,6 +1,5 @@
 ### Quick Summary: *How to Reason About Indexing Your Postgres Database*  
 
-This webinar covers **best practices for indexing in PostgreSQL**, focusing on how to analyze query patterns, select optimal indexes, and balance performance trade-offs.  
 
 #### **Key Takeaways:**  
 - **Indexes Are a Trade-Off**: While they speed up queries, they slow down writes and consume disk space.  
