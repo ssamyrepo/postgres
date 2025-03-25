@@ -122,7 +122,6 @@ PostgreSQL follows a **client-server model** with the following components:
      - **Licensing**: PostgreSQL is open-source and free, unlike proprietary databases like Oracle.
 
 ### 2. **Installation of PostgreSQL**
-   - **On Windows**: The video walks through downloading the PostgreSQL installer, setting up the database, and accessing it via the command line and PGAdmin4.
    - **On Linux**: The installation process involves using the Yum repository, initializing the database, and starting the PostgreSQL service. The video also covers creating a new user and role.
 
 ### 3. **PostgreSQL Architecture**
@@ -226,7 +225,7 @@ PostgreSQL follows a **client-server model** with the following components:
    - **Reindexing**: Rebuilding indexes to remove fragmentation and improve performance.
    - **Clustering**: Physically reordering table data based on an index to improve query performance.
 
-### 19. **Logical Replication Demo**
+### 19. **Logical Replication **
    - **Setup**: The demo shows how to set up logical replication between two PostgreSQL instances, one acting as the publisher and the other as the subscriber.
    - **Steps**:
      1. Configure the publisher by updating `postgresql.conf` and `pg_hba.conf`.
@@ -234,21 +233,19 @@ PostgreSQL follows a **client-server model** with the following components:
      3. Create a subscription on the subscriber.
      4. Test the replication by inserting data on the publisher and verifying it on the subscriber.
 
-### 20. **Backup and Restore Demo**
+### 20. **Backup and Restore **
    - **Backup**: The demo shows how to use `pg_dump` to take a backup of a database and `pg_basebackup` to take a full cluster backup.
    - **Restore**: The demo also covers restoring a database from a backup using `pg_restore` and `psql`.
 
-### 21. **PG Upgrade Demo**
+### 21. **PG Upgrade **
    - **Upgrade Process**: The demo walks through upgrading a PostgreSQL instance from version 10 to version 12 using the `pg_upgrade` utility.
    - **Verification**: After the upgrade, the demo shows how to verify that the data has been successfully migrated to the new version.
 
-### 22. **PG Repack Demo**
+### 22. **PG Repack **
    - **Installation**: The demo shows how to install the `pg_repack` extension and enable it in a database.
    - **Usage**: The demo demonstrates how to use `pg_repack` to rebuild tables and indexes online, removing bloat and improving performance.
 
-### 23. **Routine Maintenance Demo**
+### 23. **Routine Maintenance **
    - **Vacuuming and Analyzing**: The demo shows how to perform routine maintenance tasks like vacuuming and analyzing tables using PGAdmin4.
    - **Reindexing and Clustering**: The demo also covers reindexing and clustering tables to improve performance.
 
-### Conclusion
-This video series provides a thorough overview of PostgreSQL administration, from basic installation and configuration to advanced topics like replication, backup, and maintenance. Whether you're a beginner or an experienced database administrator, these tutorials offer valuable insights and practical guidance for managing PostgreSQL databases effectively.
