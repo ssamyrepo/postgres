@@ -1,4 +1,4 @@
-Thanks for sharing the webinar transcript! Based on the content, the webinar covered a comprehensive set of strategies for optimizing **PostgreSQL I/O performance and costs**, with particular emphasis on **Amazon Aurora and RDS**. Here are the **key takeaways**:
+ **PostgreSQL I/O performance and costs**, with particular emphasis on **Amazon Aurora and RDS**. Here are the **key takeaways**:
 
 ---
 
