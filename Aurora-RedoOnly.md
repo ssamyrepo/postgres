@@ -75,3 +75,50 @@ Instead of writing **both WAL and data pages**, **Aurora writes only a "redo log
 - It **eliminates checkpoints**, preventing **I/O spikes**.
 - **However, reads may require reconstructing pages**, impacting query latency if not optimized.
 
+Great question — and a common one. Here's a concise and clear explanation of **why read operations in Amazon Aurora PostgreSQL can be slower** than in traditional PostgreSQL or PostgreSQL on RDS:
+
+---
+
+### 🔍 **Why Aurora Reads Can Be Slower**
+
+| **Reason**                                 | **Explanation**                                                                                                                                                                                                      |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Distributed Storage Architecture**       | Aurora stores data on a distributed, log-structured storage system across 3 AZs. Even simple reads **may go over the network**, adding **latency** vs local disk or memory-based reads.                              |
+| **No Local Data Files on Instances**       | In traditional PostgreSQL or RDS, data is stored **locally** on the instance's disk (e.g., EBS), which has lower latency for cached or nearby data. Aurora reads **always come from shared storage**, unless cached. |
+| **Shared Buffer Efficiency**               | Although Aurora supports `shared_buffers`, **the cache hit ratio can be lower** than on RDS/PostgreSQL, especially on busy multi-tenant workloads or when instance memory is smaller.                                |
+| **Tiered Cache Needs Tuning**              | Newer features like **Tiered Cache** and **Optimized Reads** (with NVMe) improve performance, but they’re only available on **specific instance families (R6id, R6gd)** and require correct configuration.           |
+| **Read-Replica Lag (Asynchronous)**        | Aurora replicas sync changes **asynchronously** from the writer. Some read queries might hit **stale data** or wait on block invalidations if the reader buffer is behind.                                           |
+| **CPU Contention on Multi-Tenant Storage** | Aurora’s back-end storage is multi-tenant. Under high load, or noisy-neighbor scenarios, read latencies may increase due to contention.                                                                              |
+
+---
+
+### 📊 Performance Example
+
+| Workload Type        | Aurora PostgreSQL                                     | PostgreSQL RDS     | Self-Managed PostgreSQL    |
+| -------------------- | ----------------------------------------------------- | ------------------ | -------------------------- |
+| **Sequential Reads** | ⚠️ Slightly Slower (network read from shared storage) | ✅ Fast (local EBS) | ✅ Fastest (local SSD/NVMe) |
+| **Index Scans**      | ⚠️ Slower if index not fully cached                   | ✅ Good             | ✅ Excellent                |
+| **Buffer Cache Hit** | ⚠️ Depends on instance size & activity                | ✅ Tunable          | ✅ Fully tunable            |
+
+---
+
+### ✅ When Aurora Excels
+
+* **Write-heavy workloads** (due to quorum log writes)
+* **High availability + failover** (due to shared storage)
+* **Auto-scaling or serverless patterns**
+* **Global database** and cross-region replication
+
+---
+
+### 🛠️ How to Improve Aurora Read Performance
+
+1. Use **Optimized Reads** (NVMe-backed instances like `r6gd`, `r6id`).
+2. Enable **Tiered Cache** for large working sets.
+3. Increase `shared_buffers` and `work_mem` in parameter groups.
+4. Use **Aurora Read Replicas** in **the same AZ** as the application.
+5. Offload heavy queries to clones or analytics-specific replicas.
+
+---
+
+Would you like benchmark examples comparing read latencies between Aurora and RDS/PostgreSQL for different workload patterns (e.g., index scan vs full table scan)?
