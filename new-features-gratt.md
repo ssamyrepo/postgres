@@ -131,3 +131,35 @@ Let me know if you’d like:
 * A summary tailored for **interview prep**,
 * **Diagrams** to visualize Aurora architecture,
 * Or a **comparison** of Aurora vs RDS/PostgreSQL for a real-world use case.
+
+* Here’s a **clear side-by-side comparison** of **memory tuning in Amazon Aurora PostgreSQL vs self-managed PostgreSQL**:
+
+---
+
+### 🔄 **Aurora PostgreSQL vs Self-Managed PostgreSQL: Memory Tuning**
+
+| Feature / Concept           | **Aurora PostgreSQL**                                          | **Self-Managed PostgreSQL**                             |
+| --------------------------- | -------------------------------------------------------------- | ------------------------------------------------------- |
+| **Shared Memory Backend**   | Custom in-memory engine (no OS-level shared memory)            | Depends on **System V** or **POSIX** shared memory      |
+| **`shared_buffers`**        | Tunable (default ≈ 75% of instance RAM), managed by Aurora     | Tunable, must balance with OS-level memory usage        |
+| **OS Kernel Parameters**    | **Not required** (no `shmmax`, `shmall`, etc.)                 | Must configure `shmmax`, `shmall`, `semmsl`, etc.       |
+| **Workload Isolation**      | Memory isolated per Aurora instance (multi-tenant safe)        | Shared memory across all PostgreSQL processes           |
+| **WAL Handling**            | WAL not stored locally; log changes streamed to Aurora storage | WAL stored in local disk + memory for crash recovery    |
+| **Crash Recovery**          | **Fast (seconds)** due to log-based, durable architecture      | Slower (can take minutes), replays WAL from disk        |
+| **Dynamic Buffer Pool**     | Automatically resizes with Aurora Serverless v2                | Manual resizing; requires downtime to change            |
+| **Temporary Storage Spill** | Can leverage **Optimized Reads** with local NVMe (if enabled)  | Spills to local disk (usually EBS or SSD)               |
+| **Monitoring Tools**        | Aurora-specific Performance Insights, CloudWatch metrics       | Custom tools or extensions (e.g., `pg_stat_statements`) |
+
+---
+
+### 💡 **Key Takeaways**
+
+* Aurora **abstracts OS-level memory management** for simplicity and performance.
+* You still **tune PostgreSQL parameters** (e.g., `shared_buffers`, `work_mem`, `temp_buffers`) via **parameter groups**.
+* For bursty workloads, **Aurora Serverless v2** automatically adjusts memory and CPU based on load.
+* **No need to manage shared memory config at the OS level** — it’s all encapsulated by Aurora’s managed architecture.
+
+---
+
+Would you like a recommended **Aurora PostgreSQL memory tuning baseline** for OLTP vs analytics workloads?
+
