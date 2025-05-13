@@ -571,5 +571,97 @@ Here's a **summary and key takeaways** from the webinar on **Advanced Autovacuum
 - The **pganalyze VACUUM Advisor** provides deep insights and recommendations to **proactively manage bloat, XID wraparound, and performance issues**.
 - **Actionable insights** help DBAs reduce vacuum-related downtime and inefficiencies.
 
+
+Amazon **Aurora PostgreSQL handles `autovacuum` similarly to standard PostgreSQL**, but with **key differences and optimizations** due to Aurora's cloud-native architecture.
+
+Here's a breakdown:
+
+---
+
+### ✅ **Aurora PostgreSQL and Autovacuum: Overview**
+
+| Feature                      | Aurora PostgreSQL Behavior                                                                                         |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| **Autovacuum Daemon**        | **Enabled by default**, just like standard PostgreSQL                                                              |
+| **Configuration Parameters** | Tunable via **DB parameter groups**                                                                                |
+| **VACUUM and ANALYZE**       | Both are supported and function the same way                                                                       |
+| **Storage Behavior**         | Vacuumed tuples are not reused until Aurora storage compaction processes reclaim space                             |
+| **Performance Optimization** | Aurora uses **distributed storage** — so VACUUM doesn’t write to local disk, but can still incur I/O and CPU usage |
+| **Crash Recovery & WAL**     | Aurora handles WAL differently, but autovacuum still generates WAL records when needed                             |
+
+---
+
+### 🔄 **What's the Same as Standard PostgreSQL**
+
+* Autovacuum removes **dead tuples** and **bloat** to:
+
+  * Prevent transaction ID wraparound
+  * Maintain index and table efficiency
+* You still configure:
+
+  * `autovacuum_vacuum_threshold`
+  * `autovacuum_vacuum_scale_factor`
+  * `autovacuum_naptime`
+  * `autovacuum_max_workers`
+* Manual `VACUUM`, `ANALYZE`, `VACUUM FULL` are supported
+
+---
+
+### ⚙️ **Aurora-Specific Considerations**
+
+#### 1. **Aurora Storage Model**
+
+* Aurora does not store data locally; it's **log-based and distributed** across multiple storage nodes.
+* Dead tuples are not “cleaned up” on a local file — they exist until **Aurora’s background compaction** reclaims them at the segment level.
+* Autovacuum still triggers the usual tuple pruning and hint bit setting, but reclaiming space is **logically deferred** to Aurora’s engine.
+
+#### 2. **WAL Handling**
+
+* Aurora uses a **log-only write model** — WAL is sent to storage nodes.
+* This reduces **checkpoint overhead**, but autovacuum **still generates WAL** for updates and page visibility changes (e.g., hint bits), although more efficiently.
+
+#### 3. **Monitoring Autovacuum**
+
+Use standard PostgreSQL views:
+
+```sql
+SELECT * FROM pg_stat_all_tables WHERE n_dead_tup > 0;
+SELECT * FROM pg_stat_activity WHERE query LIKE '%autovacuum%';
+```
+
+Also use **Amazon RDS Performance Insights** or **CloudWatch metrics** for CPU spikes related to autovacuum.
+
+---
+
+### 📌 **Tips for Managing Autovacuum in Aurora**
+
+1. **Monitor Dead Tuples**:
+
+   ```sql
+   SELECT relname, n_dead_tup FROM pg_stat_user_tables WHERE n_dead_tup > 1000;
+   ```
+
+2. **Tune Autovacuum Settings** if you have large/busy tables:
+
+   * Increase `autovacuum_max_workers`
+   * Lower `autovacuum_vacuum_scale_factor` for frequently updated tables
+
+3. **Avoid Manual VACUUM FULL**:
+
+   * It rewrites the entire table — expensive and blocks writes.
+   * Use with caution in production, just like in standard PostgreSQL.
+
+4. **Use pg\_stat\_all\_tables** to understand vacuum frequency and dead row accumulation.
+
+---
+
+### 🧠 Summary
+
+> **Aurora PostgreSQL handles autovacuum much like standard PostgreSQL**, but because storage is **remote, log-based, and multi-AZ**, **physical cleanup is abstracted** into Aurora's engine. You still benefit from autovacuum's role in **XID wraparound prevention** and **query performance**, but **space reclaim is asynchronous and backend-managed.**
+
+---
+
+Let me know if you’d like a tuning recommendation for high-write Aurora workloads or help analyzing autovacuum logs.
+
 ---
 
