@@ -739,4 +739,116 @@ SELECT * FROM pg_replication_slots;
 
 Would you like an example of using replication slots with **logical replication** or with **AWS DMS**?
 
+Here’s a comprehensive list of **PostgreSQL autovacuum tuning parameters**, along with practical guidance for optimizing them based on workload patterns.
+
+---
+
+## 🔧 **1. Global Autovacuum Configuration (postgresql.conf)**
+
+| Parameter                             | Default                        | Purpose                                             |
+| ------------------------------------- | ------------------------------ | --------------------------------------------------- |
+| `autovacuum`                          | `on`                           | Enables the autovacuum daemon                       |
+| `autovacuum_naptime`                  | `1min`                         | Time between autovacuum runs                        |
+| `autovacuum_max_workers`              | `3`                            | Max concurrent autovacuum processes                 |
+| `autovacuum_vacuum_cost_limit`        | `-1` (use `vacuum_cost_limit`) | Work budget for each autovacuum                     |
+| `autovacuum_vacuum_cost_delay`        | `20ms`                         | Delay between vacuum steps                          |
+| `autovacuum_freeze_max_age`           | `200 million`                  | Force vacuum to avoid XID wraparound                |
+| `autovacuum_multixact_freeze_max_age` | `400 million`                  | Same as above for multi-transaction IDs             |
+| `autovacuum_vacuum_scale_factor`      | `0.2`                          | % of row updates/deletes to trigger vacuum          |
+| `autovacuum_vacuum_threshold`         | `50`                           | Base number of row changes before vacuum            |
+| `autovacuum_analyze_scale_factor`     | `0.1`                          | % of row inserts/updates/deletes to trigger analyze |
+| `autovacuum_analyze_threshold`        | `50`                           | Base number of row changes before analyze           |
+
+---
+
+## 🧠 **2. How Vacuum is Triggered**
+
+For a table to be vacuumed:
+
+```text
+updates + deletes ≥ (scale_factor * reltuples) + threshold
+```
+
+**Example:**
+For a 1 million row table with defaults:
+
+```text
+0.2 * 1,000,000 + 50 = 200,050 changes needed
+```
+
+🔸 For large tables, this may delay vacuum → consider reducing `scale_factor`.
+
+---
+
+## ✅ **3. Recommended Tuning Examples**
+
+### 🔹 High-Update OLTP System
+
+```conf
+autovacuum_max_workers = 10
+autovacuum_naptime = 10s
+autovacuum_vacuum_cost_delay = 5ms
+autovacuum_vacuum_cost_limit = 1000
+autovacuum_vacuum_scale_factor = 0.05
+autovacuum_vacuum_threshold = 50
+autovacuum_analyze_scale_factor = 0.02
+```
+
+### 🔹 Append-Only (Insert-heavy) System
+
+* Focus on **analyze** rather than vacuum
+
+```conf
+autovacuum_analyze_scale_factor = 0.01
+autovacuum_analyze_threshold = 50
+```
+
+---
+
+## 🧩 **4. Per-Table Tuning**
+
+Use `ALTER TABLE` to override global defaults:
+
+```sql
+ALTER TABLE big_table
+  SET (autovacuum_vacuum_scale_factor = 0.01,
+       autovacuum_vacuum_threshold = 100,
+       autovacuum_analyze_scale_factor = 0.005);
+```
+
+---
+
+## 🧪 **5. Monitoring Autovacuum**
+
+Query for vacuum stats:
+
+```sql
+SELECT relname, n_tup_ins, n_tup_upd, n_tup_del, n_dead_tup, last_autovacuum
+FROM pg_stat_user_tables
+ORDER BY n_dead_tup DESC;
+```
+
+Check age (to prevent wraparound):
+
+```sql
+SELECT datname, age(datfrozenxid)
+FROM pg_database
+ORDER BY age(datfrozenxid) DESC;
+```
+
+---
+
+## ❗ **6. Tips & Best Practices**
+
+* Always monitor **dead tuples** and **XID age**.
+* Don’t set `autovacuum = off` unless you know what you're doing.
+* Use **pg\_stat\_activity** to detect slow autovacuums.
+* Consider using **parallel workers**, higher cost limits for large tables.
+* Avoid wraparound: monitor databases approaching **2.1 billion XIDs**.
+
+---
+
+Would you like a **template script** to auto-tune large tables based on `pg_class` statistics?
+
+
 
