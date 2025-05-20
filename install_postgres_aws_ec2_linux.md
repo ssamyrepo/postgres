@@ -378,3 +378,233 @@ For production, use a WSGI server like `gunicorn`:
 - Verify the database connection details in `app.py`.
 
 
+Ubuntu Version :
+
+# PostgreSQL Installation and Flask Setup Guide for Ubuntu
+
+## Installing PostgreSQL on Ubuntu
+
+### 1. Install PostgreSQL
+```bash
+sudo apt update
+sudo apt install -y postgresql postgresql-contrib
+```
+
+### 2. Check PostgreSQL Status
+```bash
+sudo systemctl status postgresql
+```
+
+### 3. Switch to PostgreSQL User
+```bash
+sudo -i -u postgres
+```
+
+### 4. Access PostgreSQL Shell
+```bash
+psql
+```
+
+### 5. Create Database and User
+```sql
+CREATE DATABASE myflaskdb;
+CREATE USER flaskuser WITH PASSWORD 'securepassword';
+GRANT ALL PRIVILEGES ON DATABASE myflaskdb TO flaskuser;
+ALTER USER flaskuser WITH SUPERUSER;
+\q
+```
+
+### 6. Exit PostgreSQL User
+```bash
+exit
+```
+
+## Configure PostgreSQL for Remote Access (Optional)
+
+### 1. Edit PostgreSQL Config
+```bash
+sudo nano /etc/postgresql/14/main/postgresql.conf
+```
+Uncomment/modify:
+```
+listen_addresses = '*'
+```
+
+### 2. Edit Client Authentication
+```bash
+sudo nano /etc/postgresql/14/main/pg_hba.conf
+```
+Add:
+```
+host    all             all             0.0.0.0/0               md5
+```
+
+### 3. Restart PostgreSQL
+```bash
+sudo systemctl restart postgresql
+```
+
+## Setting Up Flask with PostgreSQL
+
+### 1. Install Python and Virtual Environment
+```bash
+sudo apt install -y python3 python3-pip python3-venv
+```
+
+### 2. Create Project Directory
+```bash
+mkdir flaskapp && cd flaskapp
+```
+
+### 3. Create Virtual Environment
+```bash
+python3 -m venv venv
+source venv/bin/activate
+```
+
+### 4. Install Required Packages
+```bash
+pip install flask psycopg2-binary gunicorn
+```
+
+### 5. Create app.py
+```python
+from flask import Flask, request, jsonify
+import psycopg2
+
+app = Flask(__name__)
+
+# Database connection
+def get_db_connection():
+    conn = psycopg2.connect(
+        host='localhost',
+        database='myflaskdb',
+        user='flaskuser',
+        password='securepassword'
+    )
+    return conn
+
+# Create users table if not exists
+def init_db():
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id SERIAL PRIMARY KEY,
+            name VARCHAR(100) NOT NULL,
+            email VARCHAR(100) UNIQUE NOT NULL
+        )
+    ''')
+    conn.commit()
+    cur.close()
+    conn.close()
+
+# Routes
+@app.route('/users', methods=['GET'])
+def get_users():
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute('SELECT * FROM users;')
+    users = cur.fetchall()
+    cur.close()
+    conn.close()
+    return jsonify(users)
+
+@app.route('/users', methods=['POST'])
+def create_user():
+    data = request.get_json()
+    name = data['name']
+    email = data['email']
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute('INSERT INTO users (name, email) VALUES (%s, %s) RETURNING id;', (name, email))
+    user_id = cur.fetchone()[0]
+    conn.commit()
+    cur.close()
+    conn.close()
+    return jsonify({'id': user_id, 'name': name, 'email': email}), 201
+
+if __name__ == '__main__':
+    init_db()
+    app.run(host='0.0.0.0', port=5000)
+```
+
+### 6. Run Flask Application
+```bash
+python3 app.py
+```
+
+## Running in Production with Gunicorn
+
+### 1. Create WSGI Entry Point
+```bash
+nano wsgi.py
+```
+Add:
+```python
+from app import app
+
+if __name__ == "__main__":
+    app.run()
+```
+
+### 2. Run with Gunicorn
+```bash
+gunicorn -w 4 -b 0.0.0.0:5000 wsgi:app
+```
+
+### 3. Set Up Systemd Service (Optional)
+```bash
+sudo nano /etc/systemd/system/flaskapp.service
+```
+Add:
+```
+[Unit]
+Description=Gunicorn instance to serve Flask app
+After=network.target
+
+[Service]
+User=ubuntu
+Group=www-data
+WorkingDirectory=/home/ubuntu/flaskapp
+Environment="PATH=/home/ubuntu/flaskapp/venv/bin"
+ExecStart=/home/ubuntu/flaskapp/venv/bin/gunicorn -w 4 -b 0.0.0.0:5000 wsgi:app
+
+[Install]
+WantedBy=multi-user.target
+```
+
+### 4. Enable and Start Service
+```bash
+sudo systemctl daemon-reload
+sudo systemctl start flaskapp
+sudo systemctl enable flaskapp
+```
+
+## Firewall Configuration
+
+### Allow Port 5000
+```bash
+sudo ufw allow 5000
+```
+
+## Troubleshooting
+
+### Check PostgreSQL Logs
+```bash
+sudo tail -f /var/log/postgresql/postgresql-14-main.log
+```
+
+### Check Flask Application Logs
+```bash
+journalctl -u flaskapp -f
+```
+
+### Test Database Connection
+```bash
+psql -h localhost -U flaskuser -d myflaskdb -W
+```
+
+This guide provides a complete setup for running a Flask application with PostgreSQL on Ubuntu, including both development and production configurations.
+
