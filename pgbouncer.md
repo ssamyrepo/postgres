@@ -117,3 +117,113 @@
 - Proper configuration of pooling modes and connection limits is crucial for optimal performance.
 
 ---
+Great! Here's what you asked for:
+
+---
+
+## 🔄 **pgBouncer vs. Pgpool-II: Quick Comparison**
+
+| Feature                         | **pgBouncer**                            | **Pgpool-II**                                                         |
+| ------------------------------- | ---------------------------------------- | --------------------------------------------------------------------- |
+| 🧠 **Purpose**                  | Lightweight **connection pooler**        | Connection pooler + **load balancing**, **replication**, **failover** |
+| ⚡ **Performance**               | Very fast and low resource usage         | Heavier, adds more processing overhead                                |
+| 🔁 **Connection Pooling Modes** | Session, Transaction, Statement          | Session only                                                          |
+| 🧩 **Advanced Features**        | No query caching, no failover logic      | Has **query caching**, **replication**, **auto failover**             |
+| 🔐 **Authentication Support**   | Yes (same as PostgreSQL)                 | Yes                                                                   |
+| 🔗 **Multi-node Support**       | No (1 DB target only)                    | Yes (can route queries across replicas)                               |
+| ⚙️ **Setup Complexity**         | Easy                                     | Medium to High                                                        |
+| 📦 **Use Case**                 | High-concurrency apps, short connections | HA + Load Balancing + Read/Write split                                |
+
+> ✅ **Choose `pgBouncer`** when:
+>
+> * You just need **fast, efficient connection pooling**
+> * Want to reduce `max_connections` load on PostgreSQL
+> * Simplicity and stability are priorities
+
+> ✅ **Choose `Pgpool-II`** when:
+>
+> * You need **read/write splitting**
+> * You want **HA/failover or replication**
+> * Your workload benefits from **query caching**
+
+---
+
+## 🚀 pgBouncer Production Setup: Quick Steps
+
+### 1. **Install pgBouncer**
+
+```bash
+sudo yum install pgbouncer -y     # RHEL/CentOS
+# OR
+sudo apt install pgbouncer -y     # Debian/Ubuntu
+```
+
+---
+
+### 2. **Create pgBouncer Userlist File**
+
+```bash
+echo '"admin" "yourpassword"' > /etc/pgbouncer/userlist.txt
+chmod 600 /etc/pgbouncer/userlist.txt
+```
+
+---
+
+### 3. **Configure `pgbouncer.ini`**
+
+File path: `/etc/pgbouncer/pgbouncer.ini`
+
+```ini
+[databases]
+demodb = host=127.0.0.1 port=5432 dbname=demodb
+
+[pgbouncer]
+listen_port = 6432
+listen_addr = 0.0.0.0
+auth_type = md5
+auth_file = /etc/pgbouncer/userlist.txt
+pool_mode = transaction
+max_client_conn = 500
+default_pool_size = 20
+```
+
+---
+
+### 4. **Enable PostgreSQL MD5 Auth (if not already)**
+
+In `pg_hba.conf`:
+
+```conf
+host all all 127.0.0.1/32 md5
+```
+
+Then reload:
+
+```bash
+sudo systemctl reload postgresql
+```
+
+---
+
+### 5. **Start pgBouncer**
+
+```bash
+sudo systemctl start pgbouncer
+sudo systemctl enable pgbouncer
+```
+
+---
+
+### 6. **Connect via pgBouncer**
+
+```bash
+psql -h 127.0.0.1 -p 6432 -U admin -d demodb
+```
+
+---
+
+Let me know if you’d like:
+
+* A Helm chart or YAML setup to run `pgBouncer` on Kubernetes
+* A connection pool sizing formula
+* Or a performance tuning guide for `pgBouncer` in AWS (RDS/Aurora).
