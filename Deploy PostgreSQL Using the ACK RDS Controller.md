@@ -310,3 +310,56 @@ Deploying PostgreSQL on EKS offers flexibility in terms of infrastructure choice
 Running PostgreSQL within EKS allows for the integration of sophisticated monitoring and logging tools. Operators often provide metrics and logging capabilities, enabling proactive management of database performance and health. This setup also permits extensive customization to meet unique application requirements. citeturn0search0
 
 It's important to note that managing PostgreSQL on EKS requires a certain level of expertise in Kubernetes and database administration. While this approach offers greater control and potential cost benefits, it also entails responsibilities such as handling backups, updates, and ensuring high availability—tasks typically managed by services like Amazon RDS. Therefore, organizations should carefully assess their operational capabilities and specific needs before opting for this deployment strategy. 
+
+Here are the **key takeaways** from the AWS Tech Talk video **"Deploying Amazon RDS Database for Applications in Kubernetes"** using simple and clear points:
+
+---
+
+### ✅ **Key Takeaways:**
+
+1. **ACK (AWS Controllers for Kubernetes)** allows managing **AWS services like RDS** directly from Kubernetes using Kubernetes-native YAML manifests.
+
+2. **Declarative Management**:
+
+   * You define the desired state (e.g., an RDS instance with specs) in a YAML file.
+   * Kubernetes + ACK takes care of provisioning the actual resource in AWS.
+
+3. **Supports All RDS Engines**:
+
+   * PostgreSQL, MySQL, MariaDB, Oracle, SQL Server
+   * Also supports Aurora (MySQL/PostgreSQL compatible) including **Aurora Serverless v2**
+
+4. **Full RDS Lifecycle in Kubernetes**:
+
+   * Create, modify, scale, snapshot, delete DB instances/clusters
+   * Manage read replicas and parameter groups
+
+5. **GitOps Integration (via Flux)**:
+
+   * Changes to RDS resources can be driven by commits to Git (YAML changes auto-applied)
+   * Enables full infrastructure-as-code workflows for DB provisioning
+
+6. **FieldExport Feature**:
+
+   * Automatically extracts values like DB endpoint/port from the RDS resource and injects them into Kubernetes ConfigMaps for use by your app pods
+
+7. **IRSA (IAM Roles for Service Accounts)**:
+
+   * Fine-grained permissions so that only specific AWS resources can be created/modified from Kubernetes
+
+8. **ACK is Open Source**:
+
+   * You can extend, contribute, or request new features
+   * Maintained by AWS and integrated with RDS product roadmap
+
+9. **Aurora Serverless v2 Works Seamlessly**:
+
+   * ACK supports min/max ACUs for auto-scaling DB compute based on app load
+
+10. **No Need to Run Databases in Kubernetes**:
+
+* You get the benefit of a **managed database** (via RDS) **while still integrating it into your Kubernetes workflows**
+
+---
+
+
