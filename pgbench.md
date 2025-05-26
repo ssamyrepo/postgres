@@ -4,7 +4,7 @@ To run a simple `pgbench` benchmark on your PostgreSQL RDS instance (`rds-pg-lab
 3. Initialize a `pgbench` database and run a simple benchmark.
 4. Ensure the connection to the RDS instance works with the provided SSL settings and credentials.
 
-The environment variables you provided are mostly correct, but note that `DBENDP` and `PGHOST` reference `rds-pg-lab` (singular) while previous interactions used `rds-pg-labs` (plural). I’ll assume the correct endpoint is `rds-pg-labs.cj2s8sqw4bta.us-east-1.rds.amazonaws.com` based on prior context, but please confirm. Additionally, previous attempts showed issues with the password (`Goodwin3889`) and SSL certificate verification, so we’ll address those as needed.
+The environment variables you provided are mostly correct, but note that `DBENDP` and `PGHOST` reference `rds-pg-lab` (singular) while previous interactions used `rds-pg-labs` (plural). I’ll assume the correct endpoint is `rds-pg-labs.cj2s8sqw4bta.us-east-1.rds.amazonaws.com` based on prior context, but please confirm. Additionally, previous attempts showed issues with the password (`Password`) and SSL certificate verification, so we’ll address those as needed.
 
 ### Step-by-Step Instructions
 
@@ -61,11 +61,11 @@ Expected output (based on your input, correcting `DBENDP` to match `PGHOST`):
 ```
 DBENDP: rds-pg-labs.cj2s8sqw4bta.us-east-1.rds.amazonaws.com
 DBUSER: postgres
-DBPASS: Goodwin3889
+DBPASS: password
 DBPORT: 5432
 PGHOST: rds-pg-labs.cj2s8sqw4bta.us-east-1.rds.amazonaws.com
 PGUSER: postgres
-PGPASSWORD: Goodwin3889
+PGPASSWORD: password
 AWSREGION: us-east-1
 PGSSLMODE: verify-full
 PGSSLROOTCERT: /home/ubuntu/rds-combined-ca-bundle.pem
@@ -106,19 +106,19 @@ psql "host=$PGHOST port=$DBPORT user=$PGUSER password=$PGPASSWORD dbname=pglab s
 ```
 
 If the connection fails:
-- **Password authentication failed**: The password `Goodwin3889` may be incorrect. Reset the RDS master password:
+- **Password authentication failed**: The password `password` may be incorrect. Reset the RDS master password:
   ```bash
   aws rds modify-db-instance \
     --db-instance-identifier rds-pg-labs \
-    --master-user-password "Goodwin3889" \
+    --master-user-password "password" \
     --apply-immediately
   ```
   Or use a new password and update:
   ```bash
   export DBPASS="new_password"
   export PGPASSWORD="new_password"
-  sed -i 's/export DBPASS="Goodwin3889"/export DBPASS="new_password"/' /home/ubuntu/.bashrc
-  sed -i 's/export PGPASSWORD="Goodwin3889"/export PGPASSWORD="new_password"/' /home/ubuntu/.bashrc
+  sed -i 's/export DBPASS="password"/export DBPASS="new_password"/' /home/ubuntu/.bashrc
+  sed -i 's/export PGPASSWORD="password3889"/export PGPASSWORD="new_password"/' /home/ubuntu/.bashrc
   source /home/ubuntu/.bashrc
   ```
 - **SSL error: certificate verify failed**: Try `sslmode=require`:
@@ -189,12 +189,12 @@ export PYENV_ROOT="$HOME/.pyenv"
 command -v pyenv >/dev/null || export PATH="$PYENV_ROOT/bin:$PATH"
 eval "$(pyenv init -)"
 export PATH=$PATH:/usr/local/bin:/usr/bin
-export DBPASS="Goodwin3889"  # Replace with correct password
+export DBPASS="password3889"  # Replace with correct password
 export DBUSER=postgres
 export DBENDP=rds-pg-labs.cj2s8sqw4bta.us-east-1.rds.amazonaws.com
 export DBPORT=5432
 export PGUSER=postgres
-export PGPASSWORD="Goodwin3889"  # Replace with correct password
+export PGPASSWORD="password3889"  # Replace with correct password
 export PGHOST=rds-pg-labs.cj2s8sqw4bta.us-east-1.rds.amazonaws.com
 export AWSREGION=us-east-1
 export PGSSLMODE=verify-full  # Use require if verify-full fails
@@ -250,12 +250,12 @@ export PYENV_ROOT="$HOME/.pyenv"
 command -v pyenv >/dev/null || export PATH="$PYENV_ROOT/bin:$PATH"
 eval "$(pyenv init -)"
 export PATH=$PATH:/usr/local/bin:/usr/bin
-export DBPASS="Goodwin3889"  # Replace with correct password
+export DBPASS="password3889"  # Replace with correct password
 export DBUSER=postgres
 export DBENDP=rds-pg-labs.cj2s8sqw4bta.us-east-1.rds.amazonaws.com
 export DBPORT=5432
 export PGUSER=postgres
-export PGPASSWORD="Goodwin3889"  # Replace with correct password
+export PGPASSWORD="password3889"  # Replace with correct password
 export PGHOST=rds-pg-labs.cj2s8sqw4bta.us-east-1.rds.amazonaws.com
 export AWSREGION=us-east-1
 export PGSSLMODE=verify-full  # Use require if verify-full fails
