@@ -118,7 +118,7 @@ If the connection fails:
   export DBPASS="new_password"
   export PGPASSWORD="new_password"
   sed -i 's/export DBPASS="password"/export DBPASS="new_password"/' /home/ubuntu/.bashrc
-  sed -i 's/export PGPASSWORD="password3889"/export PGPASSWORD="new_password"/' /home/ubuntu/.bashrc
+  sed -i 's/export PGPASSWORD="password"/export PGPASSWORD="new_password"/' /home/ubuntu/.bashrc
   source /home/ubuntu/.bashrc
   ```
 - **SSL error: certificate verify failed**: Try `sslmode=require`:
@@ -189,12 +189,12 @@ export PYENV_ROOT="$HOME/.pyenv"
 command -v pyenv >/dev/null || export PATH="$PYENV_ROOT/bin:$PATH"
 eval "$(pyenv init -)"
 export PATH=$PATH:/usr/local/bin:/usr/bin
-export DBPASS="password3889"  # Replace with correct password
+export DBPASS="password"  # Replace with correct password
 export DBUSER=postgres
 export DBENDP=rds-pg-labs.cj2s8sqw4bta.us-east-1.rds.amazonaws.com
 export DBPORT=5432
 export PGUSER=postgres
-export PGPASSWORD="password3889"  # Replace with correct password
+export PGPASSWORD="password"  # Replace with correct password
 export PGHOST=rds-pg-labs.cj2s8sqw4bta.us-east-1.rds.amazonaws.com
 export AWSREGION=us-east-1
 export PGSSLMODE=verify-full  # Use require if verify-full fails
@@ -250,12 +250,12 @@ export PYENV_ROOT="$HOME/.pyenv"
 command -v pyenv >/dev/null || export PATH="$PYENV_ROOT/bin:$PATH"
 eval "$(pyenv init -)"
 export PATH=$PATH:/usr/local/bin:/usr/bin
-export DBPASS="password3889"  # Replace with correct password
+export DBPASS="password"  # Replace with correct password
 export DBUSER=postgres
 export DBENDP=rds-pg-labs.cj2s8sqw4bta.us-east-1.rds.amazonaws.com
 export DBPORT=5432
 export PGUSER=postgres
-export PGPASSWORD="password3889"  # Replace with correct password
+export PGPASSWORD="password"  # Replace with correct password
 export PGHOST=rds-pg-labs.cj2s8sqw4bta.us-east-1.rds.amazonaws.com
 export AWSREGION=us-east-1
 export PGSSLMODE=verify-full  # Use require if verify-full fails
